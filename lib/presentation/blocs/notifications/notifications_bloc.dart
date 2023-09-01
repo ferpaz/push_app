@@ -9,6 +9,20 @@ import 'package:push_app/firebase_options.dart';
 part 'notifications_event.dart';
 part 'notifications_state.dart';
 
+
+Future<void> firebaseMessaginBackgroundHandler (RemoteMessage message) async {
+  await Firebase.initializeApp();
+
+  print('Message data: ${message.data}');
+  print('Message notification: ${message.notification}');
+
+  if (message.notification != null) {
+    print('Message notification title: ${message.notification!.title}');
+    print('Message notification body: ${message.notification!.body}');
+  }
+}
+
+
 class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
 
@@ -23,6 +37,9 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     _initialStatusCheck();
 
     // Listener para recibir notificaciones cuando la app esta en primer plano
+    _onForegroundMessage();
+
+    // Listener para recibir notificaciones cuando la app esta en segundo plano
     _onForegroundMessage();
   }
 
