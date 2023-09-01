@@ -9,3 +9,9 @@ class NotificationStatusChanges extends NotificationsEvent {
 
   const NotificationStatusChanges(this.newStatus);
 }
+
+class NotificationReceived extends NotificationsEvent {
+  final PushMessage message;
+
+  const NotificationReceived(this.message);
+}

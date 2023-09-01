@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:push_app/config/domain/entities/push_message.dart';
 
 import 'package:push_app/firebase_options.dart';
 
@@ -10,19 +11,16 @@ part 'notifications_event.dart';
 part 'notifications_state.dart';
 
 
+// Handler para recibir notificaciones cuando la app esta en segundo plano o cerrada
 Future<void> firebaseMessaginBackgroundHandler (RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform,);
 
-  print('Message data: ${message.data}');
-  print('Message notification: ${message.notification}');
-
-  if (message.notification != null) {
-    print('Message notification title: ${message.notification!.title}');
-    print('Message notification body: ${message.notification!.body}');
-  }
+  var pushMessage = PushMessage.fromRemoteMessage(message);
+  print(pushMessage.toString());
 }
 
 
+// Clase para manejar el estado de las notificaciones
 class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
 
@@ -31,18 +29,32 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   }
 
   NotificationsBloc() : super(NotificationsState()) {
-    on<NotificationStatusChanges>(onNotificationStatusChanged);
+    on<NotificationStatusChanges>(_onNotificationStatusChanged);
+    on<NotificationReceived>(_onNotificationReceived);
 
     // Verifica el estado de las notificaciones
     _initialStatusCheck();
 
     // Listener para recibir notificaciones cuando la app esta en primer plano
     _onForegroundMessage();
-
-    // Listener para recibir notificaciones cuando la app esta en segundo plano
-    _onForegroundMessage();
   }
 
+  // Método para solicitar al usuario que otorgue los permisos para recibir notificaciones
+  Future<void> requestPermission() async {
+    NotificationSettings settings = await messaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: true,
+      provisional: false,
+      sound: true,
+    );
+
+    add(NotificationStatusChanges(settings.authorizationStatus));
+  }
+
+  // Inicializa el estado de autorización de las notificaciones
   void _initialStatusCheck() async {
     // get notification settings solo pregunta si tiene permisos o no
     NotificationSettings settings = await messaging.getNotificationSettings();
@@ -61,22 +73,12 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     }
   }
 
-  void _onForegroundMessage() => FirebaseMessaging.onMessage.listen(_handleRemoteMessage);
-
-
-  // Método para manejar un mensaje de notificación recibido po la App
-  void _handleRemoteMessage(RemoteMessage message) {
-    print('Message data: ${message.data}');
-    print('Message notification: ${message.notification}');
-
-    if (message.notification != null) {
-      print('Message notification title: ${message.notification!.title}');
-      print('Message notification body: ${message.notification!.body}');
-    }
-  }
+  // Inicializa el servicio que recibe los mensajes de notificación recibidos cuando la app esta en primer plano
+  void _onForegroundMessage()
+    => FirebaseMessaging.onMessage.listen(_handleRemoteMessage);
 
   // Método para manejar el cambio de estado de autorización para las notificaciones
-  Future<FutureOr<void>> onNotificationStatusChanged(NotificationStatusChanges event, Emitter<NotificationsState> emit) async {
+  Future<void> _onNotificationStatusChanged(NotificationStatusChanges event, Emitter<NotificationsState> emit) async {
     emit(state.copyWith(authorizationStatus: event.newStatus));
 
     if (event.newStatus == AuthorizationStatus.authorized) {
@@ -85,19 +87,13 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     }
   }
 
-  // Método para solicitar los permisos de notificaciones
-  Future<void> requestPermission() async {
-    // requiere los permisos de notificaciones
-    NotificationSettings settings = await messaging.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: true,
-      provisional: false,
-      sound: true,
-    );
+  // Método para manejar la recepción de un nuevo mensaje de notificación y lo agrega al estado
+  void _onNotificationReceived(NotificationReceived event, Emitter<NotificationsState> emit)
+    => emit(state.copyWith(notifications: [ event.message, ...state.notifications]));
 
-    add(NotificationStatusChanges(settings.authorizationStatus));
+  // Método para manejar un mensaje de notificación recibido po la App
+  void _handleRemoteMessage(RemoteMessage message) {
+    var pushMessage = PushMessage.fromRemoteMessage(message);
+    add(NotificationReceived(pushMessage));
   }
 }
