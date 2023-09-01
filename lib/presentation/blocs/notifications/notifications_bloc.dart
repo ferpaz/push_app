@@ -1,11 +1,12 @@
-import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:push_app/config/domain/entities/push_message.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:isar/isar.dart';
 
 import 'package:push_app/firebase_options.dart';
+import 'package:push_app/config/domain/entities/push_message.dart';
 
 part 'notifications_event.dart';
 part 'notifications_state.dart';
@@ -16,6 +17,12 @@ Future<void> firebaseMessaginBackgroundHandler (RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform,);
 
   var pushMessage = PushMessage.fromRemoteMessage(message);
+
+  final dir = await getApplicationDocumentsDirectory();
+  final isar = await Isar.open([PushMessageSchema], directory: dir.path);
+
+  await isar.writeTxn(() => isar.pushMessages.put(pushMessage));
+
   print(pushMessage.toString());
 }
 
