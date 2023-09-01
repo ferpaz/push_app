@@ -15,3 +15,9 @@ class NotificationReceived extends NotificationsEvent {
 
   const NotificationReceived(this.message);
 }
+
+class NotificationsReceived extends NotificationsEvent {
+  final List<PushMessage> messages;
+
+  const NotificationsReceived(this.messages);
+}

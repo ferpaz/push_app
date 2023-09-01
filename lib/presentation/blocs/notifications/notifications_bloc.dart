@@ -19,7 +19,8 @@ Future<void> firebaseMessaginBackgroundHandler (RemoteMessage message) async {
   var pushMessage = PushMessage.fromRemoteMessage(message);
 
   final dir = await getApplicationDocumentsDirectory();
-  final isar = await Isar.open([PushMessageSchema], directory: dir.path);
+
+  final isar = Isar.getInstance() ?? await Isar.open([PushMessageSchema], directory: dir.path);
 
   await isar.writeTxn(() => isar.pushMessages.put(pushMessage));
 
@@ -38,6 +39,10 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   NotificationsBloc() : super(NotificationsState()) {
     on<NotificationStatusChanges>(_onNotificationStatusChanged);
     on<NotificationReceived>(_onNotificationReceived);
+    on<NotificationsReceived>(_onNotificationsReceived);
+
+    // Inicializa notificaciones recibidas mientras la App estaba en segundo plano o cerrada
+    _initializePushMessages();
 
     // Verifica el estado de las notificaciones
     _initialStatusCheck();
@@ -59,6 +64,16 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     );
 
     add(NotificationStatusChanges(settings.authorizationStatus));
+  }
+
+  void _initializePushMessages() async {
+
+    final dir = await getApplicationDocumentsDirectory();
+
+    final isar = Isar.getInstance() ?? await Isar.open([PushMessageSchema], directory: dir.path);
+
+    final messages = await isar.pushMessages.where().sortBySentTimeDesc().findAll();
+    add(NotificationsReceived(messages));
   }
 
   // Inicializa el estado de autorización de las notificaciones
@@ -97,6 +112,9 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   // Método para manejar la recepción de un nuevo mensaje de notificación y lo agrega al estado
   void _onNotificationReceived(NotificationReceived event, Emitter<NotificationsState> emit)
     => emit(state.copyWith(notifications: [ event.message, ...state.notifications]));
+
+  void _onNotificationsReceived(NotificationsReceived event, Emitter<NotificationsState> emit)
+    => emit(state.copyWith(notifications: [ ...event.messages, ...state.notifications]));
 
   // Método para manejar un mensaje de notificación recibido po la App
   void _handleRemoteMessage(RemoteMessage message) {
