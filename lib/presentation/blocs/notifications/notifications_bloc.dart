@@ -18,13 +18,17 @@ Future<void> firebaseMessaginBackgroundHandler (RemoteMessage message) async {
 
   var pushMessage = PushMessage.fromRemoteMessage(message);
 
+  await savePushMessageIsar(pushMessage);
+
+  print(pushMessage.toString());
+}
+
+Future<void> savePushMessageIsar(PushMessage pushMessage) async {
   final dir = await getApplicationDocumentsDirectory();
 
   final isar = Isar.getInstance() ?? await Isar.open([PushMessageSchema], directory: dir.path);
 
   await isar.writeTxn(() => isar.pushMessages.put(pushMessage));
-
-  print(pushMessage.toString());
 }
 
 
@@ -97,7 +101,8 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
 
   // Inicializa el servicio que recibe los mensajes de notificación recibidos cuando la app esta en primer plano
   void _onForegroundMessage()
-    => FirebaseMessaging.onMessage.listen(_handleRemoteMessage);
+    => FirebaseMessaging.onMessage.listen((RemoteMessage message) async => await _handleRemoteMessage(message));
+
 
   // Método para manejar el cambio de estado de autorización para las notificaciones
   Future<void> _onNotificationStatusChanged(NotificationStatusChanges event, Emitter<NotificationsState> emit) async {
@@ -117,8 +122,16 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     => emit(state.copyWith(notifications: [ ...event.messages, ...state.notifications]));
 
   // Método para manejar un mensaje de notificación recibido po la App
-  void _handleRemoteMessage(RemoteMessage message) {
+  Future<void> _handleRemoteMessage(RemoteMessage message) async {
     var pushMessage = PushMessage.fromRemoteMessage(message);
+    await savePushMessageIsar(pushMessage);
+
     add(NotificationReceived(pushMessage));
+  }
+
+  PushMessage? getMessagebyId(String pushMessageId) {
+    return state.notifications.any((element) => element.id == pushMessageId)
+     ? state.notifications.firstWhere((element) => element.id == pushMessageId)
+     : null;
   }
 }
