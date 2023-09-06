@@ -48,7 +48,7 @@ class HandleNotificationInteractions extends StatefulWidget {
   State<HandleNotificationInteractions> createState() => _HandleNotificationInteractionsState();
 }
 
-class _HandleNotificationInteractionsState extends State<HandleNotificationInteractions> {
+class _HandleNotificationInteractionsState extends State<HandleNotificationInteractions> with WidgetsBindingObserver {
 
   Future<void> setupInteractedMessage() async {
     // Get any messages which caused the application to open from a terminated state.
@@ -71,12 +71,45 @@ class _HandleNotificationInteractionsState extends State<HandleNotificationInter
   void initState() {
     super.initState();
 
+    // Escuchar los cambios de estado en el ciclo de vida de la app
+    WidgetsBinding.instance.addObserver(this);
+
     // Run code required to handle interacted messages in an async function as initState() must not be async
     setupInteractedMessage();
   }
 
   @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return widget.child;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      // La app esta en primer plano
+      case AppLifecycleState.resumed:
+        // Agrega posibles notificaciones recibidas mientras la App estaba en segundo plano
+        context.read<NotificationsBloc>().initializePushMessages();
+        break;
+
+      // La app paso a segundo plano
+      case AppLifecycleState.inactive:
+        break;
+
+      // Está a punto de pausarse o cerrarse
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        break;
+
+      // Acaba de iniciar y no tiene vistas visibles
+      case AppLifecycleState.detached:
+        break;
+    }
   }
 }

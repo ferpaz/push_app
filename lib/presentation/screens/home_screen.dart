@@ -32,6 +32,7 @@ class _HomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textStyles = Theme.of(context).textTheme;
     final notifications = context.watch<NotificationsBloc>().state.notifications;
 
     if (notifications.isEmpty)
@@ -49,11 +50,14 @@ class _HomeView extends StatelessWidget {
           onDismissed: (direction) => context.read<NotificationsBloc>().add(RemoveNotification(notification)),
           background: Container(
             color: Colors.red,
-            child: const Row(
+            child: Row(
               children: [
-                Spacer(),
-                Icon(Icons.delete_rounded, color: Colors.white),
-                SizedBox(width: 20,),
+                const Spacer(),
+                const SizedBox(width: 20,),
+                Text("Eliminar", style: textStyles.bodyMedium!.copyWith(color: Colors.white)),
+                const SizedBox(width: 10,),
+                const Icon(Icons.delete_rounded, color: Colors.white),
+                const SizedBox(width: 20,),
               ],
             ),
           ),

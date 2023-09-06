@@ -56,7 +56,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     on<RemoveNotification>(_onRemoveNotification);
 
     // Inicializa notificaciones recibidas mientras la App estaba en segundo plano o cerrada
-    _initializePushMessages();
+    initializePushMessages();
 
     // Verifica el estado de las notificaciones
     _initialStatusCheck();
@@ -80,7 +80,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     add(NotificationStatusChanges(settings.authorizationStatus));
   }
 
-  void _initializePushMessages() async {
+  void initializePushMessages() async {
     final isar = await getIsarInstance();
 
     final messages = await isar.pushMessages.where().sortBySentTimeDesc().findAll();
@@ -122,11 +122,17 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   }
 
   // Método para manejar la recepción de un nuevo mensaje de notificación y lo agrega al estado
-  void _onNotificationReceived(NotificationReceived event, Emitter<NotificationsState> emit)
-    => emit(state.copyWith(notifications: [ event.message, ...state.notifications]));
+  void _onNotificationReceived(NotificationReceived event, Emitter<NotificationsState> emit) {
+    if (state.notifications.any((sm) => sm.id == event.message.id)) return;
+    emit(state.copyWith(notifications: [ event.message, ...state.notifications]));
+  }
 
-  void _onNotificationsReceived(NotificationsReceived event, Emitter<NotificationsState> emit)
-    => emit(state.copyWith(notifications: [ ...event.messages, ...state.notifications]));
+  void _onNotificationsReceived(NotificationsReceived event, Emitter<NotificationsState> emit) {
+    final newMessages = event.messages
+      .where((nm) => !state.notifications.any((sm) => sm.id == nm.id))
+      .toList();
+    emit(state.copyWith(notifications: [ ...newMessages, ...state.notifications]));
+  }
 
   Future<void> _onRemoveNotification(RemoveNotification event, Emitter<NotificationsState> emit) async {
     final isar = await getIsarInstance();
