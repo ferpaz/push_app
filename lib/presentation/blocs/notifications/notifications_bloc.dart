@@ -24,11 +24,20 @@ Future<void> firebaseMessaginBackgroundHandler (RemoteMessage message) async {
 }
 
 Future<void> savePushMessageIsar(PushMessage pushMessage) async {
+  final isar = await getIsarInstance();
+
+  if (await isar.pushMessages.where().idEqualTo(pushMessage.id).count() > 0) {
+    return;
+  }
+
+  await isar.writeTxn(() => isar.pushMessages.put(pushMessage));
+}
+
+Future<Isar> getIsarInstance() async {
   final dir = await getApplicationDocumentsDirectory();
 
   final isar = Isar.getInstance() ?? await Isar.open([PushMessageSchema], directory: dir.path);
-
-  await isar.writeTxn(() => isar.pushMessages.put(pushMessage));
+  return isar;
 }
 
 
@@ -71,10 +80,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   }
 
   void _initializePushMessages() async {
-
-    final dir = await getApplicationDocumentsDirectory();
-
-    final isar = Isar.getInstance() ?? await Isar.open([PushMessageSchema], directory: dir.path);
+    final isar = await getIsarInstance();
 
     final messages = await isar.pushMessages.where().sortBySentTimeDesc().findAll();
     add(NotificationsReceived(messages));
@@ -101,7 +107,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
 
   // Inicializa el servicio que recibe los mensajes de notificación recibidos cuando la app esta en primer plano
   void _onForegroundMessage()
-    => FirebaseMessaging.onMessage.listen((RemoteMessage message) async => await _handleRemoteMessage(message));
+    => FirebaseMessaging.onMessage.listen((RemoteMessage message) async => await handleRemoteMessage(message));
 
 
   // Método para manejar el cambio de estado de autorización para las notificaciones
@@ -122,7 +128,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     => emit(state.copyWith(notifications: [ ...event.messages, ...state.notifications]));
 
   // Método para manejar un mensaje de notificación recibido po la App
-  Future<void> _handleRemoteMessage(RemoteMessage message) async {
+  Future<void> handleRemoteMessage(RemoteMessage message) async {
     var pushMessage = PushMessage.fromRemoteMessage(message);
     await savePushMessageIsar(pushMessage);
 
