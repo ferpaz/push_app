@@ -21,3 +21,9 @@ class NotificationsReceived extends NotificationsEvent {
 
   const NotificationsReceived(this.messages);
 }
+
+class RemoveNotification extends NotificationsEvent {
+  final PushMessage message;
+
+  const RemoveNotification(this.message);
+}

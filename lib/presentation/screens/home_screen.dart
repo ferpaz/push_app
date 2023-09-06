@@ -42,14 +42,30 @@ class _HomeView extends StatelessWidget {
       itemBuilder: (BuildContext context, int index) {
         final notification = notifications[index];
 
-        return ListTile(
-          title: Text(notification.title),
-          subtitle: notification.body == null ? null :Text(notification.body!),
-          leading: notification.imageUrl == null ? null : Image.network(notification.imageUrl!),
-          trailing: Text(_formatSentDate(notification.sentTime)) ,
-          onTap: () {
-            context.push('/push-details/${notification.id}');
-          },
+        return Dismissible(
+          key: Key(notification.id),
+          resizeDuration: null,
+          direction: DismissDirection.endToStart,
+          onDismissed: (direction) => context.read<NotificationsBloc>().add(RemoveNotification(notification)),
+          background: Container(
+            color: Colors.red,
+            child: const Row(
+              children: [
+                Spacer(),
+                Icon(Icons.delete_rounded, color: Colors.white),
+                SizedBox(width: 20,),
+              ],
+            ),
+          ),
+          child: ListTile(
+            title: Text(notification.title),
+            subtitle: notification.body == null ? null :Text(notification.body!),
+            leading: notification.imageUrl == null ? null : Image.network(notification.imageUrl!),
+            trailing: Text(_formatSentDate(notification.sentTime)) ,
+            onTap: () {
+              context.push('/push-details/${notification.id}');
+            },
+          ),
         );
       },
     );

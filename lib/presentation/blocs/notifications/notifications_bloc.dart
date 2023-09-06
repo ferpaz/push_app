@@ -53,6 +53,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     on<NotificationStatusChanges>(_onNotificationStatusChanged);
     on<NotificationReceived>(_onNotificationReceived);
     on<NotificationsReceived>(_onNotificationsReceived);
+    on<RemoveNotification>(_onRemoveNotification);
 
     // Inicializa notificaciones recibidas mientras la App estaba en segundo plano o cerrada
     _initializePushMessages();
@@ -127,6 +128,17 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   void _onNotificationsReceived(NotificationsReceived event, Emitter<NotificationsState> emit)
     => emit(state.copyWith(notifications: [ ...event.messages, ...state.notifications]));
 
+  Future<void> _onRemoveNotification(RemoveNotification event, Emitter<NotificationsState> emit) async {
+    final isar = await getIsarInstance();
+
+    var query = isar.pushMessages.where().idEqualTo(event.message.id);
+    if (await query.count() > 0) {
+      await isar.writeTxn(() => query.deleteFirst());
+    }
+
+    emit(state.copyWith(notifications: state.notifications.where((element) => element.id != event.message.id).toList()));
+  }
+
   // Método para manejar un mensaje de notificación recibido po la App
   Future<void> handleRemoteMessage(RemoteMessage message) async {
     var pushMessage = PushMessage.fromRemoteMessage(message);
@@ -135,6 +147,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     add(NotificationReceived(pushMessage));
   }
 
+  // Obtiene la inforacion de un mensaje de notificación por su id
   PushMessage? getMessagebyId(String pushMessageId) {
     return state.notifications.any((element) => element.id == pushMessageId)
      ? state.notifications.firstWhere((element) => element.id == pushMessageId)

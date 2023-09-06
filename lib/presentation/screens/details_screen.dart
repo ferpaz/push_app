@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:push_app/config/domain/entities/push_message.dart';
 import 'package:push_app/presentation/blocs/notifications/notifications_bloc.dart';
 
@@ -16,6 +17,15 @@ class DetailsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Detalles Push'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_rounded),
+            onPressed: () {
+              context.read<NotificationsBloc>().add(RemoveNotification(pushMessage!));
+              context.pop();
+            },
+          ),
+        ],
       ),
       body: (pushMessage != null) ? _DetailsView(pushMessage: pushMessage) : Container(),
     );
@@ -26,7 +36,6 @@ class _DetailsView extends StatelessWidget {
   final PushMessage pushMessage;
 
   const _DetailsView({
-    super.key,
     required this.pushMessage,
   });
 
