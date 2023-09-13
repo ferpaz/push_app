@@ -5,22 +5,21 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:isar/isar.dart';
 
-import 'package:push_app/firebase_options.dart';
 import 'package:push_app/config/domain/entities/push_message.dart';
+import 'package:push_app/firebase_options.dart';
 
 part 'notifications_event.dart';
 part 'notifications_state.dart';
 
-
 // Handler para recibir notificaciones cuando la app esta en segundo plano o cerrada
-Future<void> firebaseMessaginBackgroundHandler (RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform,);
+Future<void> firebaseMessaginBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   var pushMessage = PushMessage.fromRemoteMessage(message);
 
   await savePushMessageIsar(pushMessage);
-
-  print(pushMessage.toString());
 }
 
 Future<void> savePushMessageIsar(PushMessage pushMessage) async {
@@ -40,16 +39,21 @@ Future<Isar> getIsarInstance() async {
   return isar;
 }
 
-
 // Clase para manejar el estado de las notificaciones
 class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
 
+  final Future<void> Function()? requestLocalNotificationPermissions;
+
+  final void Function({required int id, String? title, String? body, String? data})? showLocalNotification;
+
   static Future<void> initializeFCM() async {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform,);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   }
 
-  NotificationsBloc() : super(NotificationsState()) {
+  NotificationsBloc({this.requestLocalNotificationPermissions, this.showLocalNotification}) : super(NotificationsState()) {
     on<NotificationStatusChanges>(_onNotificationStatusChanged);
     on<NotificationReceived>(_onNotificationReceived);
     on<NotificationsReceived>(_onNotificationsReceived);
@@ -76,6 +80,11 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
       provisional: false,
       sound: true,
     );
+
+    // Solicitar permiso para recibir local notifications
+    if (requestLocalNotificationPermissions != null) {
+      await requestLocalNotificationPermissions!();
+    }
 
     add(NotificationStatusChanges(settings.authorizationStatus));
   }
@@ -107,9 +116,7 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   }
 
   // Inicializa el servicio que recibe los mensajes de notificación recibidos cuando la app esta en primer plano
-  void _onForegroundMessage()
-    => FirebaseMessaging.onMessage.listen((RemoteMessage message) async => await handleRemoteMessage(message));
-
+  void _onForegroundMessage() => FirebaseMessaging.onMessage.listen((RemoteMessage message) async => await handleRemoteMessage(message));
 
   // Método para manejar el cambio de estado de autorización para las notificaciones
   Future<void> _onNotificationStatusChanged(NotificationStatusChanges event, Emitter<NotificationsState> emit) async {
@@ -124,14 +131,12 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
   // Método para manejar la recepción de un nuevo mensaje de notificación y lo agrega al estado
   void _onNotificationReceived(NotificationReceived event, Emitter<NotificationsState> emit) {
     if (state.notifications.any((sm) => sm.id == event.message.id)) return;
-    emit(state.copyWith(notifications: [ event.message, ...state.notifications]));
+    emit(state.copyWith(notifications: [event.message, ...state.notifications]));
   }
 
   void _onNotificationsReceived(NotificationsReceived event, Emitter<NotificationsState> emit) {
-    final newMessages = event.messages
-      .where((nm) => !state.notifications.any((sm) => sm.id == nm.id))
-      .toList();
-    emit(state.copyWith(notifications: [ ...newMessages, ...state.notifications]));
+    final newMessages = event.messages.where((nm) => !state.notifications.any((sm) => sm.id == nm.id)).toList();
+    emit(state.copyWith(notifications: [...newMessages, ...state.notifications]));
   }
 
   Future<void> _onRemoveNotification(RemoveNotification event, Emitter<NotificationsState> emit) async {
@@ -145,18 +150,24 @@ class NotificationsBloc extends Bloc<NotificationsEvent, NotificationsState> {
     emit(state.copyWith(notifications: state.notifications.where((element) => element.id != event.message.id).toList()));
   }
 
-  // Método para manejar un mensaje de notificación recibido po la App
+  // Método para manejar un mensaje de notificación recibido por la App
   Future<void> handleRemoteMessage(RemoteMessage message) async {
     var pushMessage = PushMessage.fromRemoteMessage(message);
     await savePushMessageIsar(pushMessage);
+
+    if (showLocalNotification != null)
+      showLocalNotification!(
+        id: pushMessage.id.hashCode,
+        title: pushMessage.title,
+        body: pushMessage.body,
+        data: pushMessage.id,
+      );
 
     add(NotificationReceived(pushMessage));
   }
 
   // Obtiene la inforacion de un mensaje de notificación por su id
   PushMessage? getMessagebyId(String pushMessageId) {
-    return state.notifications.any((element) => element.id == pushMessageId)
-     ? state.notifications.firstWhere((element) => element.id == pushMessageId)
-     : null;
+    return state.notifications.any((element) => element.id == pushMessageId) ? state.notifications.firstWhere((element) => element.id == pushMessageId) : null;
   }
 }

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+import 'package:push_app/config/local_notifications/local_notifications.dart';
 import 'package:push_app/config/router/app_router.dart';
 import 'package:push_app/config/theme/app_theme.dart';
 import 'package:push_app/presentation/blocs/notifications/notifications_bloc.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,10 +17,16 @@ Future<void> main() async {
   // Inicializa el Bloc de notificaciones
   await NotificationsBloc.initializeFCM();
 
+  // Inicializa las notificaciones locales
+  await LocalNotifications.initialize();
+
   runApp(
     MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => NotificationsBloc()),
+        BlocProvider(create: (_) => NotificationsBloc(
+          requestLocalNotificationPermissions: LocalNotifications.requestPermissionLocalNotification,
+          showLocalNotification: LocalNotifications.showLocalNotification,
+        )),
       ],
       child: const MainApp(),
     )
